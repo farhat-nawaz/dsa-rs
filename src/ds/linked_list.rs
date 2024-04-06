@@ -1,28 +1,24 @@
 use super::DSError;
 
-#[allow(unused)]
 #[derive(Debug)]
 struct Node<T> {
     value: T,
     next: Option<Box<Node<T>>>,
 }
 
-#[allow(unused)]
 impl<T> Node<T> {
     pub fn new(value: T) -> Self {
         Self { value, next: None }
     }
 }
 
-#[allow(unused)]
 #[derive(Debug)]
 struct List<T> {
     head: Option<Box<Node<T>>>,
     length: usize,
 }
 
-#[allow(unused)]
-impl<T> List<T> {
+impl<T: Copy> List<T> {
     pub fn new() -> Self {
         Self {
             head: None,
@@ -43,7 +39,7 @@ impl<T> List<T> {
     }
 
     pub fn insert_at(&mut self, value: T, index: usize) -> Result<(), DSError> {
-        if index > self.length - 1 {
+        if index > self.length {
             return Err(DSError::LinkedListError);
         } else if index == 0 {
             self.insert(value);
@@ -57,11 +53,10 @@ impl<T> List<T> {
                 break;
             }
 
-            let Some(c) = current else {
-                return Err(DSError::LinkedListError);
-            };
-
-            current = &mut c.next;
+            current = current
+                .as_mut()
+                .map(|c| &mut c.next)
+                .ok_or(DSError::LinkedListError)?;
         }
 
         current
@@ -79,16 +74,51 @@ impl<T> List<T> {
         Ok(())
     }
 
-    pub fn delete(&mut self, node: Node<T>) -> T {
-        todo!();
+    pub fn delete(&mut self) -> Result<T, DSError> {
+        let Some(head) = self.head.take() else {
+            return Err(DSError::LinkedListError);
+        };
+        self.head = head.next;
+        self.length -= 1;
+
+        Ok(head.value)
     }
 
-    pub fn delete_at(&mut self, index: usize) -> T {
-        todo!();
+    pub fn delete_at(&mut self, index: usize) -> Result<T, DSError> {
+        if index > self.length - 1 {
+            return Err(DSError::LinkedListError);
+        }
+
+        let mut head = &mut self.head;
+
+        for _ in 1..index {
+            head = head
+                .as_mut()
+                .map(|c| &mut c.next)
+                .ok_or(DSError::LinkedListError)?;
+        }
+
+        let head = head.as_mut().ok_or(DSError::LinkedListError)?;
+        let mut node = head.next.take().ok_or(DSError::LinkedListError)?;
+        head.next = node.next;
+        node.next = None;
+        self.length -= 1;
+
+        Ok(node.value)
     }
 
-    pub fn get(&mut self, index: usize) -> T {
-        todo!();
+    pub fn get(&mut self, index: usize) -> Option<T> {
+        if self.length == 0 || index > self.length - 1 {
+            return None;
+        }
+
+        let mut current = &mut self.head;
+
+        for _ in 1..=index {
+            current = current.as_mut().map(|c| &mut c.next)?;
+        }
+
+        current.as_ref().map(|n| n.value)
     }
 
     pub fn len(&self) -> usize {
@@ -147,5 +177,50 @@ mod tests {
         assert!(created.is_ok());
         assert_eq!(ll.len(), 3);
         assert_eq!(ll.head.unwrap().next.unwrap().value, 7);
+    }
+
+    #[test]
+    fn get() {
+        let mut ll: List<i32> = List::new();
+
+        ll.insert(5);
+        ll.insert(6);
+        ll.insert(7);
+
+        let value = ll.get(0).unwrap();
+        assert_eq!(value, 7);
+
+        let value = ll.get(1).unwrap();
+        assert_eq!(value, 6);
+
+        let value = ll.get(2).unwrap();
+        assert_eq!(value, 5);
+
+        let value = ll.get(3);
+        assert_eq!(value, None);
+    }
+
+    #[test]
+    fn delete() {
+        let mut ll: List<i32> = List::new();
+
+        ll.insert(5);
+        ll.insert(6);
+        ll.insert(7);
+
+        let value = ll.delete().unwrap();
+        assert_eq!(value, 7);
+        assert_eq!(ll.len(), 2);
+
+        let value = ll.delete().unwrap();
+        assert_eq!(value, 6);
+        assert_eq!(ll.len(), 1);
+
+        let value = ll.delete().unwrap();
+        assert_eq!(value, 5);
+        assert_eq!(ll.len(), 0);
+
+        let value = ll.get(1);
+        assert_eq!(value, None);
     }
 }
