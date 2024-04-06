@@ -1,16 +1,4 @@
-use super::DSError;
-
-#[derive(Debug)]
-struct Node<T> {
-    value: T,
-    next: Option<Box<Node<T>>>,
-}
-
-impl<T> Node<T> {
-    pub fn new(value: T) -> Self {
-        Self { value, next: None }
-    }
-}
+use super::{DSError, Node};
 
 #[derive(Debug)]
 struct List<T> {
